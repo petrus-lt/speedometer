@@ -1,128 +1,116 @@
-= HC-SR04 Speed Meter (Button-triggered, LCD I2C + Serial) :toc: :icons: font
+= HC-SR04 Speed Meter (Button-triggered, LCD I2C + Serial)
 
 A simple Arduino sketch that measures relative speed using an HC-SR04 ultrasonic sensor, and displays the result in m/s and km/h on both the Serial Monitor and a 16x2 I2C LCD. A button press triggers one measurement sequence.
 
 == Features
 
-    Button-triggered speed measurement (press once to start a single measurement).
-    Speed computation from distance derivative: v = Δdistance / Δtime.
-    Averages multiple distance readings per point to reduce noise.
-    Direction indication (approaching vs. moving away).
-    Results on Serial (115200 baud) and 16x2 I2C LCD.
-    Robust button handling:
-        Uses external interrupt on D2 when available (with software debounce).
-        Optional polling fallback if interrupts are not available.
+* Button-triggered speed measurement (press once to start a single measurement).
+* Speed computation from distance derivative: v = Δdistance / Δtime.
+* Averages multiple distance readings per point to reduce noise.
+* Direction indication (approaching vs. moving away).
+* Results on Serial (115200 baud) and 16x2 I2C LCD.
+* Robust button handling:
+** Uses external interrupt on D2 when available (with software debounce).
+** Optional polling fallback if interrupts are not available.
 
 == How It Works
 
-    On button press, the sketch captures two averaged distance points (A and B), separated by a fixed delay.
-    Each point is computed as the average of several HC-SR04 readings to reduce noise.
-    Speed is computed as v = (dB − dA) / Δt.
-        Positive v: object moving away (distance increases).
-        Negative v: object approaching (distance decreases).
+* On button press, the sketch captures two averaged distance points (A and B), separated by a fixed delay.
+* Each point is computed as the average of several HC-SR04 readings to reduce noise.
+* Speed is computed as v = (dB − dA) / Δt.
+** Positive v: object moving away (distance increases).
+** Negative v: object approaching (distance decreases).
     The LCD shows absolute speed in m/s and km/h, plus direction.
     If the sensor fails to return an echo or Δt is invalid, an error message is displayed.
 
 == Hardware
 
-    Arduino Uno (or compatible; Mega also works).
-    HC-SR04 ultrasonic sensor.
-    16x2 I2C LCD (typical addresses: 0x27 or 0x3F).
-    Momentary push button.
-    Jumper wires.
+* Arduino Uno (or compatible; Mega also works).
+* HC-SR04 ultrasonic sensor.
+* 16x2 I2C LCD (typical addresses: 0x27 or 0x3F).
+* Momentary push button.
+* Jumper wires.
 
 === Pinout (example for Arduino Uno)
 
-    HC-SR04:
-        VCC → 5V
-        GND → GND
-        TRIG → D9
-        ECHO → D8
-    Button:
-        One side → D2
-        Other side → GND
-        D2 is configured as INPUT_PULLUP (idle HIGH, pressed LOW)
-    LCD I2C:
-        SDA → A4
-        SCL → A5
-        VCC → 5V
-        GND → GND
+----
+HC-SR04:
+    VCC → 5V
+    GND → GND
+    TRIG → D9
+    ECHO → D8
+Button:
+    One side → D2
+    Other side → GND
+    D2 is configured as INPUT_PULLUP (idle HIGH, pressed LOW)
+LCD I2C:
+    SDA → A4
+    SCL → A5
+    VCC → 5V
+    GND → GND
+----
 
-Tip: If your LCD does not respond at 0x27, try 0x3F, or run an I2C scanner.
+TIP: If your LCD does not respond at 0x27, try 0x3F, or run an I2C scanner.
 
 == Software Requirements
 
-    Arduino IDE
-    Libraries:
-        Wire (bundled with Arduino)
-        LiquidCrystal_I2C (e.g., by Frank de Brabander)
+* Arduino IDE
+* Libraries:
+** Wire (bundled with Arduino)
+** LiquidCrystal_I2C (e.g., by Frank de Brabander)
 
 == Configuration
 
 Adjust these constants in the sketch to suit your setup:
 
-    LCD address:
-        LiquidCrystal_I2C lcd(0x27, 16, 2); → use 0x27 or 0x3F.
-    Sound speed:
-        TEMP_C (ambient temperature in °C)
-        SOUND_SPEED = 331.3 + 0.606 * TEMP_C (m/s)
-    HC-SR04 timeout:
-        ECHO_TIMEOUT_US (e.g., 25000 µs ≈ 4.3 m max)
-    Averaging and timing:
-        SAMPLES_PER_POINT (number of distance samples per point)
-        SAMPLE_SPACING_MS (delay between samples)
-        DELAY_BETWEEN_POINTS_MS (delay between averaged points A and B)
-    Button debounce:
-        DEBOUNCE_MS (software debounce interval)
+* LCD address:
+** LiquidCrystal_I2C lcd(0x27, 16, 2); → use 0x27 or 0x3F.
+* Sound speed:
+** TEMP_C (ambient temperature in °C)
+** SOUND_SPEED = 331.3 + 0.606 * TEMP_C (m/s)
+* HC-SR04 timeout:
+** ECHO_TIMEOUT_US (e.g., 25000 µs ≈ 4.3 m max)
+* Averaging and timing:
+** SAMPLES_PER_POINT (number of distance samples per point
+** SAMPLE_SPACING_MS (delay between samples)
+** DELAY_BETWEEN_POINTS_MS (delay between averaged points A and B)
+* Button debounce:
+** DEBOUNCE_MS (software debounce interval)
 
-== Usage
-
-    Wire the components as described.
-    Install required libraries.
-    Upload the sketch to your Arduino.
-    Open the Serial Monitor at 115200 baud.
-    Press the button (connected to D2):
-        LCD shows “Measuring…” during the process.
-        Result is printed on Serial and shown on the LCD:
-            Line 1: “X.XX m/s Y.Y km/h”
-            Line 2: “Approaching” or “Moving away” (in the provided code: French strings “Rapproche” / “S’eloigne”)
 
 == Notes on Accuracy
 
-    The HC-SR04 is noisy; averaging helps but also adds latency.
-    Increase SAMPLES_PER_POINT or DELAY_BETWEEN_POINTS_MS for slower motions to improve resolution.
-    Adjust TEMP_C to match ambient temperature; sound speed varies with temperature.
-    The sensor has a blind zone (< ~2 cm) and reduced reliability above ~4 m.
-    Best results are achieved on flat, perpendicular targets.
-
-== Interrupts vs. Polling
-
-    By default, the sketch attempts to attach an external interrupt on D2 (Uno: INT0).
-    If your board or pin doesn’t support interrupts, the provided variant can fall back to polling with software debounce.
-    Keep ISR minimal (the sketch sets a flag in the ISR, then debounces and acts in loop()).
+The HC-SR04 is noisy; averaging helps but also adds latency.
+Increase SAMPLES_PER_POINT or DELAY_BETWEEN_POINTS_MS for slower motions to improve resolution.
+Adjust TEMP_C to match ambient temperature; sound speed varies with temperature.
+The sensor has a blind zone (< ~2 cm) and reduced reliability above ~4 m.
+Best results are achieved on flat, perpendicular targets.
 
 == Typical Serial Output
+
+----
 Ready. Press the button to measure speed. Speed: 0.85 m/s (3.06 km/h) Approaching
+----
 
 == Troubleshooting
 
-    Nothing happens on button press:
-        Ensure you used D2 (digital 2), not A2.
-        With INPUT_PULLUP, idle is HIGH and pressed is LOW; ensure the button pulls D2 to GND.
-        Check Board selection in the IDE (Tools → Board).
-        If interrupts fail, use the polling fallback variant (or change the button pin to one with interrupt support).
-    LCD shows nothing:
-        Try address 0x3F instead of 0x27.
-        Verify SDA/SCL pins for your board (Uno: A4/A5).
-        Check 5V and GND.
-    Erratic or zero readings:
-        Increase averaging or delays.
-        Verify target surface and alignment (avoid soft/angled surfaces).
-        Check ECHO_TIMEOUT_US for your working distance.
+* Nothing happens on button press:
+** Ensure you used D2 (digital 2), not A2.
+** With INPUT_PULLUP, idle is HIGH and pressed is LOW; ensure the button pulls D2 to GND.
+** Check Board selection in the IDE (Tools → Board).
+** If interrupts fail, use the polling fallback variant (or change the button pin to one with interrupt support).
+* LCD shows nothing:
+* Try address 0x3F instead of 0x27.
+* Verify SDA/SCL pins for your board (Uno: A4/A5).
+* Check 5V and GND.
+* Erratic or zero readings:
+** Increase averaging or delays.
+** Verify target surface and alignment (avoid soft/angled surfaces).
+** Check ECHO_TIMEOUT_US for your working distance.
 
-== Customization Ideas
+== Future improvements
 
-    Apply a noise floor (e.g., display zero below 0.05 m/s).
-    Use a median filter instead of a mean for outlier rejection.
-    Display direction text in your preferred language.
-    Replace pulseIn with NewPing library for non-blocking reads (optional).
+* Apply a noise floor (e.g., display zero below 0.05 m/s).
+* Use a median filter instead of a mean for outlier rejection.
+* Display direction text in your preferred language.
+* Replace pulseIn with NewPing library for non-blocking reads (optional).
